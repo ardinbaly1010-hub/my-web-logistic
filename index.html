@@ -1,0 +1,969 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CetakLabel Pro - Print Label & Database Alamat</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap');
+        
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+
+        /* Style Khusus Mode Cetak (CSS Print Optimization) */
+        @media print {
+            .no-print, nav, header, sidebar, button, input, select, form, .modal-backdrop {
+                display: none !important;
+            }
+            
+            body {
+                background-color: white !important;
+                padding: 0 !important;
+                margin: 0 !important;
+            }
+
+            #main-container {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                box-shadow: none !important;
+            }
+
+            #printContainer {
+                display: block !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                box-shadow: none !important;
+                background: transparent !important;
+                border: none !important;
+            }
+
+            .print-page-break {
+                page-break-after: always;
+                break-after: page;
+            }
+
+            /* Pengaturan khusus ukuran thermal 100x150mm */
+            body.format-thermal .label-card-thermal {
+                width: 100mm !important;
+                height: 145mm !important;
+                max-width: 100mm !important;
+                margin: 0 auto !important;
+                box-shadow: none !important;
+                border: 2px solid #000 !important;
+                page-break-after: always;
+                break-after: page;
+            }
+
+            /* Format A4 Multi Grid */
+        body.format-a4-grid #print-grid {
+            display: grid !important;
+            grid-template-columns: repeat(2, 1fr) !important;
+            gap: 8mm !important;
+            width: 100% !important;
+            padding: 5mm !important;
+        }
+
+        body.format-a4-grid .label-card-grid {
+            border: 1px dashed #666 !important;
+            box-shadow: none !important;
+            break-inside: avoid;
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 min-h-screen flex flex-col format-thermal">
+
+    <!-- Header Navigation (No Print) -->
+    <header class="no-print bg-slate-900 text-white shadow-md border-b border-slate-800 sticky top-0 z-40">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3.5 flex flex-wrap items-center justify-between gap-3">
+            <div class="flex items-center space-x-3">
+                <div class="p-2 bg-indigo-600 rounded-lg">
+                    <i data-lucide="printer" class="w-6 h-6 text-white"></i>
+                </div>
+                <div>
+                    <h1 class="text-lg font-bold leading-tight flex items-center gap-2">
+                        CetakLabel Pro 
+                        <span class="text-[10px] font-normal bg-indigo-950 text-indigo-300 px-2 py-0.5 rounded border border-indigo-800">v2.0 Tabbed</span>
+                    </h1>
+                    <p class="text-xs text-slate-400">Pencetakan Label Alamat, Multi Ekspedisi & Database Customer</p>
+                </div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div class="flex items-center flex-wrap gap-2">
+                <button onclick="exportDatabase()" class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition flex items-center gap-1.5">
+                    <i data-lucide="download" class="w-3.5 h-3.5 text-emerald-400"></i>
+                    Backup (Export)
+                </button>
+                <label class="px-3 py-1.5 text-xs bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-md border border-slate-700 transition flex items-center gap-1.5 cursor-pointer">
+                    <i data-lucide="upload" class="w-3.5 h-3.5 text-amber-400"></i>
+                    Restore (Import)
+                    <input type="file" accept=".json" onchange="importDatabase(event)" class="hidden">
+                </label>
+            </div>
+        </div>
+
+        <!-- TAB NAVIGATION MENU BAR -->
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 bg-slate-950/60 border-t border-slate-800/80 flex items-center space-x-1 overflow-x-auto">
+            <button onclick="switchTab('tab-print')" id="nav-tab-print" class="tab-btn px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 border-indigo-500 text-indigo-400 bg-slate-900/50 transition whitespace-nowrap">
+                <i data-lucide="printer" class="w-4 h-4"></i>
+                Database & Cetak Label
+            </button>
+            <button onclick="switchTab('tab-input')" id="nav-tab-input" class="tab-btn px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                <i data-lucide="user-plus" class="w-4 h-4"></i>
+                Input Data Penerima Baru
+            </button>
+            <button onclick="switchTab('tab-store')" id="nav-tab-store" class="tab-btn px-4 py-2.5 text-xs font-semibold flex items-center gap-2 border-b-2 border-transparent text-slate-400 hover:text-slate-200 transition whitespace-nowrap">
+                <i data-lucide="store" class="w-4 h-4"></i>
+                Kelola Toko Pengirim
+            </button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main id="main-container" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex-1 w-full">
+
+        <!-- ========================================================================= -->
+        <!-- TAB 1: DATABASE & CETAK LABEL -->
+        <!-- ========================================================================= -->
+        <div id="tab-print" class="tab-content grid grid-cols-1 lg:grid-cols-12 gap-8">
+            
+            <!-- LEFT PANEL: Database Customer & Search Filter -->
+            <div class="no-print lg:col-span-5 space-y-4">
+                
+                <!-- Pengirim Selector Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div class="bg-indigo-50/70 p-3 rounded-lg border border-indigo-100">
+                        <label class="block text-xs font-bold text-indigo-900 uppercase tracking-wider mb-1 flex items-center justify-between">
+                            <span class="flex items-center gap-1.5">
+                                <i data-lucide="building-2" class="w-3.5 h-3.5 text-indigo-600"></i>
+                                Toko Pengirim Aktif
+                            </span>
+                            <button onclick="switchTab('tab-store')" class="text-[10px] text-indigo-600 hover:underline">Kelola Toko</button>
+                        </label>
+                        <select id="activeStoreSelect" onchange="changeActiveStore(this.value)" class="w-full px-3 py-1.5 text-sm bg-white border border-indigo-200 rounded-md focus:ring-2 focus:ring-indigo-500 outline-none">
+                            <!-- Populated via JS -->
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Database Customer List & Search Card -->
+                <div class="bg-white rounded-xl shadow-sm border border-slate-200 p-4">
+                    <div class="flex items-center justify-between mb-3 pb-3 border-b border-slate-100">
+                        <div class="flex items-center gap-2">
+                            <h2 class="font-semibold text-slate-800 flex items-center gap-2 text-sm">
+                                <i data-lucide="database" class="w-4 h-4 text-indigo-600"></i>
+                                Database Customer
+                            </h2>
+                            <span id="customerCountBadge" class="px-2 py-0.5 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full">0</span>
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <button onclick="toggleSelectAll(true)" class="text-xs text-indigo-600 hover:text-indigo-800 font-medium">Pilih Semua</button>
+                            <span class="text-slate-300">|</span>
+                            <button onclick="toggleSelectAll(false)" class="text-xs text-slate-500 hover:text-slate-700">Lepas Semua</button>
+                        </div>
+                    </div>
+
+                    <!-- Search Bar & Ekspedisi Filter -->
+                    <div class="space-y-2 mb-3">
+                        <div class="relative">
+                            <i data-lucide="search" class="w-4 h-4 absolute left-3 top-2.5 text-slate-400"></i>
+                            <input type="text" id="searchBar" oninput="handleSearch(this.value)" placeholder="Cari nama toko/penerima, HP, atau kota..." class="w-full pl-9 pr-3 py-2 text-xs border border-slate-200 rounded-lg bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div class="flex items-center gap-2">
+                            <span class="text-[11px] font-semibold text-slate-500 whitespace-nowrap">Filter Kurir:</span>
+                            <select id="courierFilter" onchange="handleCourierFilter(this.value)" class="w-full px-2 py-1 text-xs border border-slate-200 rounded-md bg-slate-50 focus:bg-white outline-none">
+                                <option value="">Semua Ekspedisi</option>
+                                <option value="J&T Express">J&T Express</option>
+                                <option value="JNE Express">JNE Express</option>
+                                <option value="SiCepat">SiCepat</option>
+                                <option value="Shopee Xpress">Shopee Xpress</option>
+                                <option value="Anteraja">Anteraja</option>
+                                <option value="Ninja Xpress">Ninja Xpress</option>
+                                <option value="ID Express">ID Express</option>
+                                <option value="GoSend / Grab">GoSend / Grab</option>
+                                <option value="Lainnya">Lainnya</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <!-- Customer Item List -->
+                    <div id="customerList" class="space-y-2 max-h-[420px] overflow-y-auto pr-1">
+                        <!-- Items rendered via JS -->
+                    </div>
+                </div>
+
+            </div>
+
+            <!-- RIGHT PANEL: Layout Format & Pratinjau Cetak -->
+            <div class="lg:col-span-7 space-y-6">
+                
+                <!-- Controls Card (No Print) -->
+                <div class="no-print bg-white rounded-xl shadow-sm border border-slate-200 p-5 space-y-4">
+                    <div class="flex flex-wrap items-center justify-between gap-4 pb-3 border-b border-slate-100">
+                        <div>
+                            <h2 class="font-semibold text-slate-800 flex items-center gap-2 text-sm">
+                                <i data-lucide="sliders" class="w-5 h-5 text-indigo-600"></i>
+                                Layout & Format Cetak
+                            </h2>
+                            <p class="text-xs text-slate-500 mt-0.5">Pilih format media cetak printer Anda</p>
+                        </div>
+                        
+                        <button onclick="triggerPrint()" class="bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-2.5 px-6 rounded-lg shadow-md transition flex items-center gap-2">
+                            <i data-lucide="printer" class="w-5 h-5"></i>
+                            PRINT SEKARANG
+                        </button>
+                    </div>
+
+                    <!-- Options Grid -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        <label class="cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-indigo-400 transition flex items-start gap-3 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                            <input type="radio" name="labelFormat" value="thermal" checked onchange="updateFormat(this.value)" class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">Thermal Resi</div>
+                                <div class="text-[11px] text-slate-500">100 x 150 mm (1 Label / Halaman)</div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-indigo-400 transition flex items-start gap-3 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                            <input type="radio" name="labelFormat" value="a4-grid" onchange="updateFormat(this.value)" class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">Stiker A4 Grid</div>
+                                <div class="text-[11px] text-slate-500">Multi-label 2 Kolom A4</div>
+                            </div>
+                        </label>
+
+                        <label class="cursor-pointer border border-slate-200 rounded-lg p-3 hover:border-indigo-400 transition flex items-start gap-3 has-[:checked]:border-indigo-600 has-[:checked]:bg-indigo-50/50">
+                            <input type="radio" name="labelFormat" value="compact" onchange="updateFormat(this.value)" class="mt-1 text-indigo-600 focus:ring-indigo-500">
+                            <div>
+                                <div class="text-xs font-bold text-slate-800">Kartu Mini</div>
+                                <div class="text-[11px] text-slate-500">Ukuran Ringkas Stiker Kecil</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- PREVIEW CONTAINER (Print Target) -->
+                <div class="bg-slate-200/60 p-4 sm:p-6 rounded-xl border border-slate-300 min-h-[500px]">
+                    <div class="no-print flex items-center justify-between mb-4">
+                        <span class="text-xs font-semibold text-slate-500 uppercase tracking-wider flex items-center gap-1.5">
+                            <i data-lucide="eye" class="w-4 h-4"></i> Pratinjau Tampilan Cetak
+                        </span>
+                        <span id="selectedCountText" class="text-xs text-slate-600 bg-white px-2.5 py-1 rounded-md border border-slate-200 font-medium">0 customer dipilih</span>
+                    </div>
+
+                    <div id="printContainer" class="flex flex-col items-center justify-center">
+                        <!-- Rendered via JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 2: FORM DEDICATED INPUT DATA PENERIMA BARU -->
+        <!-- ========================================================================= -->
+        <div id="tab-input" class="tab-content hidden max-w-3xl mx-auto">
+            <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
+                <div class="bg-slate-900 text-white px-6 py-4 flex items-center justify-between">
+                    <div>
+                        <h2 class="font-bold text-base flex items-center gap-2">
+                            <i data-lucide="user-plus" class="w-5 h-5 text-indigo-400"></i>
+                            Form Input Data Penerima / Customer Baru
+                        </h2>
+                        <p class="text-xs text-slate-400 mt-0.5">Isi data alamat lengkap dan ekspedisi tujuan pengiriman</p>
+                    </div>
+                    <button onclick="clearDedicatedForm()" class="text-xs text-slate-400 hover:text-white underline">Reset Form</button>
+                </div>
+
+                <form id="dedicatedCustomerForm" onsubmit="handleSaveDedicatedCustomer(event, false)" class="p-6 space-y-5">
+                    <input type="hidden" id="dediEditCustomerId" value="">
+
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Nama Toko / Penerima *
+                            </label>
+                            <input type="text" id="dediInputName" required placeholder="Contoh: Toko Berkah / Budi Santoso" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Nomor HP / WhatsApp *
+                            </label>
+                            <input type="tel" id="dediInputPhone" required placeholder="Contoh: 081234567890" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Alamat Lengkap Penerima *
+                        </label>
+                        <textarea id="dediInputAddress" required rows="3" placeholder="Jl. Merdeka No. 45, RT 02/RW 05, Kel. Sukamaju, Kec. Cibeunying" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition"></textarea>
+                    </div>
+
+                    <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Kota / Kabupaten *
+                            </label>
+                            <input type="text" id="dediInputCity" required placeholder="Contoh: Bandung" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                                Kode Pos
+                            </label>
+                            <input type="text" id="dediInputPostal" placeholder="Contoh: 40123" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-indigo-700 uppercase tracking-wider mb-1.5 flex items-center gap-1">
+                                <i data-lucide="truck" class="w-3.5 h-3.5 text-indigo-600"></i> Ekspedisi / Kurir *
+                            </label>
+                            <select id="dediInputCourier" required class="w-full px-3.5 py-2.5 text-sm border border-indigo-300 rounded-lg bg-indigo-50/50 focus:ring-2 focus:ring-indigo-500 outline-none transition font-semibold text-indigo-950">
+                                <option value="J&T Express">J&T Express</option>
+                                <option value="JNE Express">JNE Express</option>
+                                <option value="SiCepat">SiCepat</option>
+                                <option value="Shopee Xpress">Shopee Xpress</option>
+                                <option value="Anteraja">Anteraja</option>
+                                <option value="Ninja Xpress">Ninja Xpress</option>
+                                <option value="ID Express">ID Express</option>
+                                <option value="GoSend / Grab">GoSend / Grab</option>
+                                <option value="Lainnya">Lainnya / Regular</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase tracking-wider mb-1.5">
+                            Catatan Paket / Instruksi Khusus
+                        </label>
+                        <input type="text" id="dediInputNotes" placeholder="Contoh: FRAGILE - Jangan Dibanting / Dropship" class="w-full px-3.5 py-2.5 text-sm border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 outline-none transition">
+                    </div>
+
+                    <div class="pt-4 border-t border-slate-100 flex flex-wrap gap-3">
+                        <button type="submit" id="dediSubmitBtn" class="flex-1 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-3 px-4 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="save" class="w-4 h-4"></i>
+                            Simpan ke Database & Tambah Lagi
+                        </button>
+                        <button type="button" onclick="handleSaveDedicatedCustomer(event, true)" class="flex-1 bg-emerald-600 hover:bg-emerald-700 text-white font-semibold py-3 px-4 rounded-lg shadow-sm transition flex items-center justify-center gap-2 text-sm">
+                            <i data-lucide="printer" class="w-4 h-4"></i>
+                            Simpan & Langsung Cetak Label
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- ========================================================================= -->
+        <!-- TAB 3: KELOLA DATABASE TOKO PENGIRIM -->
+        <!-- ========================================================================= -->
+        <div id="tab-store" class="tab-content hidden max-w-4xl mx-auto space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-12 gap-6">
+                <!-- Form Input Toko Pengirim -->
+                <div class="md:col-span-5 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 class="font-bold text-sm text-slate-800 pb-3 mb-4 border-b border-slate-100 flex items-center gap-2">
+                        <i data-lucide="store" class="w-4 h-4 text-indigo-600"></i>
+                        Tambah / Edit Toko Pengirim
+                    </h3>
+                    <form id="storeForm" onsubmit="handleSaveStore(event)" class="space-y-3">
+                        <input type="hidden" id="editStoreId" value="">
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Nama Toko Pengirim *</label>
+                            <input type="text" id="inputStoreName" required placeholder="Contoh: Toko Jaya Abadi" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">No HP / WA Toko *</label>
+                            <input type="tel" id="inputStorePhone" required placeholder="081234567890" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Kota Asal Pengirim</label>
+                            <input type="text" id="inputStoreCity" placeholder="Contoh: Bandung" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-semibold text-slate-600 uppercase mb-1">Alamat Singkat Toko</label>
+                            <input type="text" id="inputStoreAddress" placeholder="Jl. Industri No. 12" class="w-full px-3 py-2 text-xs border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 outline-none">
+                        </div>
+                        <button type="submit" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2.5 rounded-lg text-xs transition">Simpan Toko Pengirim</button>
+                    </form>
+                </div>
+
+                <!-- Daftar Toko Pengirim -->
+                <div class="md:col-span-7 bg-white rounded-xl shadow-sm border border-slate-200 p-5">
+                    <h3 class="font-bold text-sm text-slate-800 pb-3 mb-4 border-b border-slate-100 flex items-center justify-between">
+                        <span class="flex items-center gap-2">
+                            <i data-lucide="building-2" class="w-4 h-4 text-indigo-600"></i>
+                            Daftar Toko Pengirim Tersimpan
+                        </span>
+                    </h3>
+                    <div id="storeTabList" class="space-y-2.5 max-h-[400px] overflow-y-auto pr-1">
+                        <!-- Items rendered via JS -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </main>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="no-print fixed bottom-5 right-5 bg-slate-900 text-white px-4 py-3 rounded-lg shadow-xl opacity-0 transition-opacity duration-300 flex items-center gap-2 pointer-events-none z-50 text-sm">
+        <i data-lucide="info" class="w-4 h-4 text-indigo-400"></i>
+        <span id="toastMessage">Pesan pemberitahuan</span>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Storage Keys
+        const STORAGE_CUSTOMERS_KEY = 'cetaklabel_customers_db_v2';
+        const STORAGE_STORES_KEY = 'cetaklabel_stores_db_v2';
+        const STORAGE_ACTIVE_STORE_KEY = 'cetaklabel_active_store_v2';
+
+        // Initial Data Fallback with Courier Field
+        const defaultStores = [
+            { id: 'store-1', name: 'Toko Jaya Abadi', phone: '0812-9988-7766', city: 'Bandung', address: 'Jl. Industri No. 12' },
+            { id: 'store-2', name: 'Fashion Official Store', phone: '0857-1122-3344', city: 'Jakarta Selatan', address: 'Kuningan Tower Lt 5' }
+        ];
+
+        const defaultCustomers = [
+            {
+                id: 'cust-1',
+                name: 'Toko Melati / Budi Santoso',
+                phone: '0812-3456-7890',
+                address: 'Jl. Melati Indah No. 12, RT 03/RW 07, Kel. Utama',
+                city: 'Bandung',
+                postal: '40123',
+                courier: 'J&T Express',
+                notes: 'FRAGILE - JANGAN DILIPAT',
+                selected: true
+            },
+            {
+                id: 'cust-2',
+                name: 'Siti Rahmawati',
+                phone: '0857-1122-3344',
+                address: 'Gedung Wisma Asri Lt. 4 Suite 402, Jl. Sudirman No. 88',
+                city: 'Jakarta Selatan',
+                postal: '12190',
+                courier: 'SiCepat',
+                notes: 'Titip di Resepsionis jika rumah kosong',
+                selected: true
+            }
+        ];
+
+        // State variables
+        let customers = [];
+        let stores = [];
+        let activeStoreId = '';
+        let currentFormat = 'thermal';
+        let searchQuery = '';
+        let courierFilterQuery = '';
+
+        // Initialize App
+        document.addEventListener('DOMContentLoaded', () => {
+            loadFromLocalStorage();
+            lucide.createIcons();
+            renderStoreSelect();
+            renderCustomerList();
+            renderPreview();
+        });
+
+        // Tab Switching Logic
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+            document.getElementById(tabId).classList.remove('hidden');
+
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.classList.remove('border-indigo-500', 'text-indigo-400', 'bg-slate-900/50');
+                btn.classList.add('border-transparent', 'text-slate-400');
+            });
+
+            const activeBtn = document.getElementById('nav-' + tabId);
+            if (activeBtn) {
+                activeBtn.classList.remove('border-transparent', 'text-slate-400');
+                activeBtn.classList.add('border-indigo-500', 'text-indigo-400', 'bg-slate-900/50');
+            }
+
+            if (tabId === 'tab-print') {
+                renderCustomerList();
+                renderPreview();
+            } else if (tabId === 'tab-store') {
+                renderModalStoreList();
+            }
+        }
+
+        // LocalStorage Handlers
+        function loadFromLocalStorage() {
+            const savedCustomers = localStorage.getItem(STORAGE_CUSTOMERS_KEY);
+            const savedStores = localStorage.getItem(STORAGE_STORES_KEY);
+            const savedActiveStore = localStorage.getItem(STORAGE_ACTIVE_STORE_KEY);
+
+            customers = savedCustomers ? JSON.parse(savedCustomers) : defaultCustomers;
+            stores = savedStores ? JSON.parse(savedStores) : defaultStores;
+            activeStoreId = savedActiveStore || (stores[0] ? stores[0].id : '');
+
+            saveToLocalStorage();
+        }
+
+        function saveToLocalStorage() {
+            localStorage.setItem(STORAGE_CUSTOMERS_KEY, JSON.stringify(customers));
+            localStorage.setItem(STORAGE_STORES_KEY, JSON.stringify(stores));
+            localStorage.setItem(STORAGE_ACTIVE_STORE_KEY, activeStoreId);
+        }
+
+        // --- MANAJEMEN DEDICATED FORM PENERIMA BARU (TAB 2) ---
+        function handleSaveDedicatedCustomer(e, printImmediately = false) {
+            if (e) e.preventDefault();
+
+            const editId = document.getElementById('dediEditCustomerId').value;
+            const name = document.getElementById('dediInputName').value.trim();
+            const phone = document.getElementById('dediInputPhone').value.trim();
+            const address = document.getElementById('dediInputAddress').value.trim();
+            const city = document.getElementById('dediInputCity').value.trim();
+            const postal = document.getElementById('dediInputPostal').value.trim();
+            const courier = document.getElementById('dediInputCourier').value;
+            const notes = document.getElementById('dediInputNotes').value.trim();
+
+            if (!name || !phone || !address || !city) {
+                alert('Mohon lengkapi field wajib (*)');
+                return;
+            }
+
+            const custData = { name, phone, address, city, postal, courier, notes, selected: true };
+
+            if (editId) {
+                const index = customers.findIndex(c => c.id === editId);
+                if (index !== -1) customers[index] = { ...customers[index], ...custData };
+            } else {
+                const newCust = { id: 'cust-' + Date.now(), ...custData };
+                customers.unshift(newCust);
+            }
+
+            saveToLocalStorage();
+            clearDedicatedForm();
+
+            if (printImmediately) {
+                switchTab('tab-print');
+                renderCustomerList();
+                renderPreview();
+                setTimeout(() => { triggerPrint(); }, 300);
+            } else {
+                showToast('Data penerima berhasil disimpan!');
+            }
+        }
+
+        function clearDedicatedForm() {
+            document.getElementById('dedicatedCustomerForm').reset();
+            document.getElementById('dediEditCustomerId').value = '';
+            document.getElementById('dediSubmitBtn').innerHTML = `<i data-lucide="save" class="w-4 h-4"></i> Simpan ke Database & Tambah Lagi`;
+            lucide.createIcons();
+        }
+
+        function editCustomerInTab(id) {
+            const cust = customers.find(c => c.id === id);
+            if (!cust) return;
+
+            document.getElementById('dediEditCustomerId').value = cust.id;
+            document.getElementById('dediInputName').value = cust.name;
+            document.getElementById('dediInputPhone').value = cust.phone;
+            document.getElementById('dediInputAddress').value = cust.address;
+            document.getElementById('dediInputCity').value = cust.city;
+            document.getElementById('dediInputPostal').value = cust.postal || '';
+            document.getElementById('dediInputCourier').value = cust.courier || 'J&T Express';
+            document.getElementById('dediInputNotes').value = cust.notes || '';
+
+            document.getElementById('dediSubmitBtn').innerHTML = `<i data-lucide="check" class="w-4 h-4"></i> Update Data Penerima`;
+            switchTab('tab-input');
+            lucide.createIcons();
+        }
+
+        // --- FILTER & LIST CUSTOMER ---
+        function handleSearch(query) {
+            searchQuery = query.toLowerCase();
+            renderCustomerList();
+        }
+
+        function handleCourierFilter(courier) {
+            courierFilterQuery = courier;
+            renderCustomerList();
+        }
+
+        function renderCustomerList() {
+            const listEl = document.getElementById('customerList');
+            document.getElementById('customerCountBadge').innerText = customers.length;
+
+            const filtered = customers.filter(c => {
+                const matchesSearch = c.name.toLowerCase().includes(searchQuery) ||
+                                     c.phone.toLowerCase().includes(searchQuery) ||
+                                     c.city.toLowerCase().includes(searchQuery);
+                const matchesCourier = !courierFilterQuery || (c.courier === courierFilterQuery);
+                return matchesSearch && matchesCourier;
+            });
+
+            if (filtered.length === 0) {
+                listEl.innerHTML = `
+                    <div class="text-center py-8 text-slate-400 bg-slate-50 rounded-lg border border-dashed border-slate-200">
+                        <i data-lucide="users" class="w-8 h-8 mx-auto mb-1 opacity-50"></i>
+                        <p class="text-xs">Tidak ada data customer yang cocok.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            listEl.innerHTML = filtered.map(cust => `
+                <div class="flex items-center justify-between p-2.5 rounded-lg border border-slate-200 hover:border-slate-300 bg-white transition ${cust.selected ? 'bg-indigo-50/30 border-indigo-200' : ''}">
+                    <label class="flex items-start gap-3 cursor-pointer flex-1 min-w-0 pr-2">
+                        <input type="checkbox" ${cust.selected ? 'checked' : ''} onchange="toggleCustomer('${cust.id}')" class="mt-1 rounded text-indigo-600 focus:ring-indigo-500">
+                        <div class="truncate">
+                            <div class="flex items-center gap-1.5">
+                                <span class="text-xs font-semibold text-slate-800 truncate">${escapeHtml(cust.name)}</span>
+                                <span class="px-1.5 py-0.2 bg-slate-100 text-slate-700 text-[9px] font-bold rounded border border-slate-200 whitespace-nowrap">${escapeHtml(cust.courier || 'J&T')}</span>
+                            </div>
+                            <div class="text-[11px] text-slate-500 truncate">${escapeHtml(cust.phone)} | ${escapeHtml(cust.city)}</div>
+                        </div>
+                    </label>
+                    <div class="flex items-center gap-1">
+                        <button onclick="editCustomerInTab('${cust.id}')" class="text-slate-400 hover:text-indigo-600 p-1 rounded transition" title="Edit">
+                            <i data-lucide="edit-3" class="w-3.5 h-3.5"></i>
+                        </button>
+                        <button onclick="deleteCustomer('${cust.id}')" class="text-slate-400 hover:text-red-600 p-1 rounded transition" title="Hapus">
+                            <i data-lucide="x" class="w-3.5 h-3.5"></i>
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+
+            lucide.createIcons();
+        }
+
+        function toggleCustomer(id) {
+            const cust = customers.find(c => c.id === id);
+            if (cust) {
+                cust.selected = !cust.selected;
+                saveToLocalStorage();
+                renderPreview();
+                renderCustomerList();
+            }
+        }
+
+        function toggleSelectAll(status) {
+            customers.forEach(c => c.selected = status);
+            saveToLocalStorage();
+            renderCustomerList();
+            renderPreview();
+        }
+
+        function deleteCustomer(id) {
+            if (confirm('Hapus customer ini dari database?')) {
+                customers = customers.filter(c => c.id !== id);
+                saveToLocalStorage();
+                renderCustomerList();
+                renderPreview();
+                showToast('Customer dihapus.');
+            }
+        }
+
+        // --- MANAJEMEN TOKO ---
+        function renderStoreSelect() {
+            const selectEl = document.getElementById('activeStoreSelect');
+            if (stores.length === 0) {
+                selectEl.innerHTML = `<option value="">-- Belum Ada Toko --</option>`;
+                return;
+            }
+
+            selectEl.innerHTML = stores.map(store => `
+                <option value="${store.id}" ${store.id === activeStoreId ? 'selected' : ''}>
+                    ${escapeHtml(store.name)} (${escapeHtml(store.phone)})
+                </option>
+            `).join('');
+
+            renderModalStoreList();
+        }
+
+        function changeActiveStore(storeId) {
+            activeStoreId = storeId;
+            saveToLocalStorage();
+            renderPreview();
+        }
+
+        function handleSaveStore(e) {
+            e.preventDefault();
+            const editId = document.getElementById('editStoreId').value;
+            const name = document.getElementById('inputStoreName').value.trim();
+            const phone = document.getElementById('inputStorePhone').value.trim();
+            const city = document.getElementById('inputStoreCity').value.trim();
+            const address = document.getElementById('inputStoreAddress').value.trim();
+
+            if (editId) {
+                const index = stores.findIndex(s => s.id === editId);
+                if (index !== -1) stores[index] = { ...stores[index], name, phone, city, address };
+            } else {
+                const newStore = { id: 'store-' + Date.now(), name, phone, city, address };
+                stores.push(newStore);
+                if (!activeStoreId) activeStoreId = newStore.id;
+            }
+
+            document.getElementById('storeForm').reset();
+            document.getElementById('editStoreId').value = '';
+            saveToLocalStorage();
+            renderStoreSelect();
+            renderPreview();
+            showToast('Data Toko Pengirim berhasil disimpan!');
+        }
+
+        function editStore(id) {
+            const store = stores.find(s => s.id === id);
+            if (!store) return;
+            document.getElementById('editStoreId').value = store.id;
+            document.getElementById('inputStoreName').value = store.name;
+            document.getElementById('inputStorePhone').value = store.phone;
+            document.getElementById('inputStoreCity').value = store.city || '';
+            document.getElementById('inputStoreAddress').value = store.address || '';
+        }
+
+        function deleteStore(id) {
+            if (confirm('Hapus toko ini dari database?')) {
+                stores = stores.filter(s => s.id !== id);
+                if (activeStoreId === id) activeStoreId = stores.length > 0 ? stores[0].id : '';
+                saveToLocalStorage();
+                renderStoreSelect();
+                renderPreview();
+                showToast('Toko dihapus.');
+            }
+        }
+
+        function renderModalStoreList() {
+            const listEl = document.getElementById('storeTabList');
+            if (!listEl) return;
+            if (stores.length === 0) {
+                listEl.innerHTML = `<div class="text-xs text-slate-400 py-2">Belum ada toko tersimpan.</div>`;
+                return;
+            }
+
+            listEl.innerHTML = stores.map(store => `
+                <div class="flex items-center justify-between p-3 rounded-lg border border-slate-200 bg-white text-xs shadow-sm">
+                    <div>
+                        <div class="font-bold text-slate-800 text-sm">${escapeHtml(store.name)}</div>
+                        <div class="text-xs text-slate-600">${escapeHtml(store.phone)} ${store.city ? ' | ' + escapeHtml(store.city) : ''}</div>
+                        ${store.address ? `<div class="text-[11px] text-slate-400 mt-0.5">${escapeHtml(store.address)}</div>` : ''}
+                    </div>
+                    <div class="flex gap-1">
+                        <button onclick="editStore('${store.id}')" class="p-1.5 text-indigo-600 hover:bg-indigo-50 rounded"><i data-lucide="edit-3" class="w-4 h-4"></i></button>
+                        <button onclick="deleteStore('${store.id}')" class="p-1.5 text-red-600 hover:bg-red-50 rounded"><i data-lucide="trash-2" class="w-4 h-4"></i></button>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        // --- FORMAT & PREVIEW CETAK ---
+        function updateFormat(format) {
+            currentFormat = format;
+            document.body.className = `bg-slate-50 text-slate-800 min-h-screen flex flex-col format-${format}`;
+            renderPreview();
+        }
+
+        function getActiveStore() {
+            return stores.find(s => s.id === activeStoreId) || {
+                name: 'Pengirim Utama',
+                phone: '-',
+                city: '',
+                address: ''
+            };
+        }
+
+        function renderPreview() {
+            const container = document.getElementById('printContainer');
+            if (!container) return;
+            const selected = customers.filter(c => c.selected);
+            const activeStore = getActiveStore();
+            
+            document.getElementById('selectedCountText').innerText = `${selected.length} customer dipilih`;
+
+            if (selected.length === 0) {
+                container.innerHTML = `
+                    <div class="text-center py-16 text-slate-400">
+                        <i data-lucide="printer-x" class="w-12 h-12 mx-auto mb-2 opacity-40"></i>
+                        <p class="text-sm font-medium">Tidak ada label yang dipilih untuk dicetak.</p>
+                        <p class="text-xs mt-1">Cari atau centang customer di daftar sebelah kiri.</p>
+                    </div>
+                `;
+                lucide.createIcons();
+                return;
+            }
+
+            if (currentFormat === 'thermal') {
+                container.innerHTML = `
+                    <div class="space-y-6 w-full flex flex-col items-center">
+                        ${selected.map((cust, idx) => `
+                            <div class="label-card-thermal bg-white p-5 rounded-none shadow-md border-2 border-slate-900 w-[100mm] min-h-[145mm] flex flex-col justify-between font-sans text-slate-900 ${idx < selected.length - 1 ? 'print-page-break' : ''}">
+                                <div>
+                                    <!-- Header Toko Pengirim & Courier Badge -->
+                                    <div class="border-b-2 border-slate-900 pb-3 mb-3 flex justify-between items-start">
+                                        <div>
+                                            <div class="text-[9px] uppercase font-bold tracking-widest text-slate-500">PENGIRIM:</div>
+                                            <div class="text-xs font-bold">${escapeHtml(activeStore.name)}</div>
+                                            <div class="text-[11px] font-mono">${escapeHtml(activeStore.phone)}</div>
+                                            ${activeStore.city ? `<div class="text-[10px] text-slate-600">${escapeHtml(activeStore.city)}</div>` : ''}
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="inline-block px-2 py-1 bg-black text-white text-xs font-black uppercase tracking-wider">${escapeHtml(cust.courier || 'J&T EXPRESS')}</span>
+                                        </div>
+                                    </div>
+
+                                    <!-- Penerima -->
+                                    <div class="space-y-2">
+                                        <div class="text-[9px] uppercase font-bold tracking-widest text-slate-500">PENERIMA:</div>
+                                        <div class="text-lg font-black leading-tight">${escapeHtml(cust.name)}</div>
+                                        <div class="text-sm font-bold font-mono bg-slate-100 p-1 inline-block rounded">${escapeHtml(cust.phone)}</div>
+                                        <div class="text-xs leading-relaxed font-medium mt-1">${escapeHtml(cust.address)}</div>
+                                        <div class="text-sm font-black uppercase tracking-wide border-t border-slate-200 pt-2 mt-2">
+                                            ${escapeHtml(cust.city)} ${cust.postal ? '- ' + escapeHtml(cust.postal) : ''}
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <!-- Footer & Barcode Simulation -->
+                                <div class="mt-4 border-t-2 border-dashed border-slate-900 pt-3">
+                                    ${cust.notes ? `
+                                        <div class="mb-3 bg-slate-50 border border-slate-300 p-2 rounded text-[11px]">
+                                            <span class="font-bold block text-[9px] uppercase">Catatan Paket:</span>
+                                            ${escapeHtml(cust.notes)}
+                                        </div>
+                                    ` : ''}
+                                    
+                                    <div class="text-center pt-1">
+                                        <div class="font-mono text-xl tracking-widest font-black uppercase border-y border-slate-900 py-1">||| | ||||| ||| |||| ||</div>
+                                        <div class="text-[9px] font-mono mt-1 text-slate-500">REF: REG-${Date.now().toString().slice(-6)}-${idx + 1}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (currentFormat === 'a4-grid') {
+                container.innerHTML = `
+                    <div id="print-grid" class="w-full grid grid-cols-1 md:grid-cols-2 gap-4">
+                        ${selected.map(cust => `
+                            <div class="label-card-grid bg-white p-4 rounded-lg shadow-sm border border-slate-300 flex flex-col justify-between font-sans">
+                                <div>
+                                    <div class="flex justify-between items-center mb-1">
+                                        <span class="text-[9px] font-bold text-slate-400 uppercase tracking-wider">Kepada Yth:</span>
+                                        <span class="text-[10px] font-black border border-slate-900 px-1.5 py-0.5 uppercase">${escapeHtml(cust.courier || 'J&T')}</span>
+                                    </div>
+                                    <div class="text-base font-bold text-slate-900">${escapeHtml(cust.name)}</div>
+                                    <div class="text-xs font-semibold text-slate-700 font-mono mb-2">${escapeHtml(cust.phone)}</div>
+                                    <div class="text-xs text-slate-600 leading-snug">${escapeHtml(cust.address)}</div>
+                                    <div class="text-xs font-bold text-slate-900 mt-1">${escapeHtml(cust.city)} ${escapeHtml(cust.postal || '')}</div>
+                                </div>
+                                <div class="mt-3 pt-2 border-t border-slate-100 flex justify-between items-end text-[10px]">
+                                    <div>
+                                        <span class="text-slate-400 block text-[8px] uppercase">Pengirim:</span>
+                                        <span class="font-medium text-slate-700">${escapeHtml(activeStore.name)} (${escapeHtml(activeStore.phone)})</span>
+                                    </div>
+                                    ${cust.notes ? `<span class="italic text-slate-500 max-w-[140px] truncate">${escapeHtml(cust.notes)}</span>` : ''}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            } else if (currentFormat === 'compact') {
+                container.innerHTML = `
+                    <div class="w-full grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        ${selected.map(cust => `
+                            <div class="bg-white p-3 rounded border border-slate-300 font-sans shadow-sm">
+                                <div class="flex justify-between items-start border-b border-slate-200 pb-1 mb-1.5">
+                                    <span class="text-[10px] font-bold text-indigo-700">PENGIRIM: ${escapeHtml(activeStore.name)}</span>
+                                    <span class="text-[10px] font-black uppercase text-slate-900 bg-slate-100 px-1 rounded">${escapeHtml(cust.courier || 'J&T')}</span>
+                                </div>
+                                <div class="text-xs font-bold">${escapeHtml(cust.name)}</div>
+                                <div class="text-[11px] font-mono text-slate-700">${escapeHtml(cust.phone)}</div>
+                                <div class="text-[11px] text-slate-600 leading-tight mt-0.5">${escapeHtml(cust.address)}</div>
+                                <div class="text-[11px] font-semibold text-slate-800 mt-1">${escapeHtml(cust.city)} ${escapeHtml(cust.postal || '')}</div>
+                                ${cust.notes ? `<div class="text-[9px] text-slate-500 mt-1 italic">Ket: ${escapeHtml(cust.notes)}</div>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                `;
+            }
+
+            lucide.createIcons();
+        }
+
+        // Auto Print Trigger
+        function triggerPrint() {
+            const selected = customers.filter(c => c.selected);
+            if (selected.length === 0) {
+                alert('Pilih setidaknya satu customer untuk dicetak!');
+                return;
+            }
+            window.print();
+        }
+
+        // --- BACKUP & RESTORE DATABASE ---
+        function exportDatabase() {
+            const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify({
+                stores: stores,
+                customers: customers
+            }, null, 2));
+            const downloadAnchor = document.createElement('a');
+            downloadAnchor.setAttribute("href", dataStr);
+            downloadAnchor.setAttribute("download", `backup_cetaklabel_${new Date().toISOString().slice(0,10)}.json`);
+            document.body.appendChild(downloadAnchor);
+            downloadAnchor.click();
+            downloadAnchor.remove();
+            showToast('Backup data berhasil di-download!');
+        }
+
+        function importDatabase(event) {
+            const fileReader = new FileReader();
+            fileReader.onload = function(e) {
+                try {
+                    const importedData = JSON.parse(e.target.result);
+                    if (importedData.customers && importedData.stores) {
+                        customers = importedData.customers;
+                        stores = importedData.stores;
+                        if (stores.length > 0) activeStoreId = stores[0].id;
+                        saveToLocalStorage();
+                        renderStoreSelect();
+                        renderCustomerList();
+                        renderPreview();
+                        showToast('Database berhasil dipulihkan!');
+                    } else {
+                        alert('Format file backup tidak valid!');
+                    }
+                } catch (err) {
+                    alert('Gagal membaca file JSON!');
+                }
+            };
+            if (event.target.files[0]) {
+                fileReader.readAsText(event.target.files[0]);
+            }
+        }
+
+        function showToast(msg) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            toast.classList.remove('opacity-0');
+            toast.classList.add('opacity-100');
+            setTimeout(() => {
+                toast.classList.remove('opacity-100');
+                toast.classList.add('opacity-0');
+            }, 2500);
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+    </script>
+</body>
+</html>
